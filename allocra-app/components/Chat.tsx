@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, short } from "@/lib/client";
 import type { Citation } from "@/lib/types";
 import SourceDrawer from "./SourceDrawer";
+import Rich from "./Rich";
 
 type Ref = Citation & { fund: string; fund_id: string | null; doc_id: string | null };
 type Msg = { role: "user" | "assistant"; text: string; refs?: Ref[]; error?: boolean };
@@ -11,19 +12,6 @@ type Msg = { role: "user" | "assistant"; text: string; refs?: Ref[]; error?: boo
 const KEY = "allocra-chat";
 const load = (): Msg[] => { try { return JSON.parse(sessionStorage.getItem(KEY) || "[]"); } catch { return []; } };
 const save = (m: Msg[]) => { try { sessionStorage.setItem(KEY, JSON.stringify(m.slice(-40))); } catch { /* storage unavailable */ } };
-
-function Formatted({ text }: { text: string }) {
-  const blocks: React.ReactNode[] = [];
-  let list: string[] = [];
-  const flush = () => { if (list.length) { blocks.push(<ul key={blocks.length}>{list.map((l, i) => <li key={i}>{l}</li>)}</ul>); list = []; } };
-  for (const line of text.split("\n")) {
-    const t = line.trim();
-    if (/^[-•*]\s+/.test(t)) list.push(t.replace(/^[-•*]\s+/, ""));
-    else { flush(); if (t) blocks.push(<p key={blocks.length}>{t}</p>); }
-  }
-  flush();
-  return <>{blocks}</>;
-}
 
 export default function Chat({ fundNames }: { fundNames: Record<string, string> }) {
   const path = usePathname();
@@ -96,7 +84,7 @@ export default function Chat({ fundNames }: { fundNames: Record<string, string> 
             <div key={i} className="row" style={{ alignItems: "flex-start", flexWrap: "nowrap", gap: 9 }}>
               <span className="ai-av">A</span>
               <div className="msg-a" style={m.error ? { color: "var(--crit)" } : undefined}>
-                <Formatted text={m.text} />
+                {m.error ? <p>{m.text}</p> : <Rich text={m.text} cites={m.refs || []} open={(c) => setSource(c as Ref)} />}
                 {!!m.refs?.length && (
                   <div className="cites">
                     {m.refs.map((r, j) => (

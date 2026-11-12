@@ -10,3 +10,4 @@ export const HAS_AI_KEY = !!process.env.ANTHROPIC_API_KEY;
 export const DOC_MODEL = process.env.ALLOCRA_DOC_MODEL || "claude-sonnet-5-5";
 export const FILING_MODEL = process.env.ALLOCRA_FILING_MODEL || "claude-haiku-5-5";
 export const CHAT_MODEL = process.env.ALLOCRA_CHAT_MODEL || "claude-sonnet-5-5";
+export const OCR_MODEL = process.env.ALLOCRA_OCR_MODEL || "claude-sonnet-5-5";

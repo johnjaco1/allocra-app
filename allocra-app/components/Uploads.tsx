@@ -5,12 +5,13 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { api, short } from "@/lib/client";
 import { extractPages, guessType } from "@/lib/extract";
 import type { DocMeta } from "@/lib/types";
+import { plain } from "@/lib/rich";
 
 type Item = {
   key: string; name: string;
   state: "reading" | "filing" | "summarizing" | "done" | "fail";
   fund?: { id: string; name: string; manager: string | null }; created?: boolean;
-  summary?: string; error?: string;
+  summary?: string; error?: string; note?: string;
 };
 type Ctx = { addFiles: (files: FileList | File[], fundId?: string) => void; pick: (fundId?: string) => void };
 const UploadCtx = createContext<Ctx>({ addFiles: () => {}, pick: () => {} });
@@ -35,7 +36,8 @@ export default function Uploads({ children }: { children: React.ReactNode }) {
 
   const one = useCallback(async (file: File, key: string, fundId?: string) => {
     try {
-      const pages = await extractPages(file);
+      const pages = await extractPages(file, (msg) => upd(key, { note: msg }));
+      upd(key, { note: undefined });
       upd(key, { state: "filing" });
       let doc: DocMeta;
       if (fundId) {
@@ -113,10 +115,10 @@ export default function Uploads({ children }: { children: React.ReactNode }) {
                 <div className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
                   {it.state === "done" ? <span className="check">✓</span> : it.state === "fail" ? <span className="check bad">!</span> : <span className="spinner" style={{ width: 15, height: 15 }} />}
                   <b className="tray-name">{short(it.name)}</b>
-                  <span className="tiny muted" style={{ marginLeft: "auto" }}>{label[it.state]}</span>
+                  <span className="tiny muted" style={{ marginLeft: "auto", whiteSpace: "nowrap" }}>{it.state === "reading" && it.note ? it.note : label[it.state]}</span>
                 </div>
                 {it.fund && <div className="tiny muted" style={{ marginLeft: 23 }}>→ {it.fund.manager ? `${it.fund.manager} › ` : ""}<Link href={`/funds/${it.fund.id}`}>{it.fund.name}</Link>{it.created ? " (new fund)" : ""}</div>}
-                {it.summary && <div className="tray-sum">{it.summary}</div>}
+                {it.summary && <div className="tray-sum">{plain(it.summary)}</div>}
                 {it.error && <div className="tiny" style={{ color: "var(--crit)", marginLeft: 23 }}>{it.error}</div>}
               </div>
             ))}

@@ -1,7 +1,8 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import { CHANGES_MODEL, DOC_MODEL, FILING_MODEL, HAS_AI_KEY, MEMO_MODEL } from "./env";
+import { CHANGES_MODEL, DOC_MODEL, FILING_MODEL, HAS_AI_KEY, MEMO_MODEL, OCR_MODEL } from "./env";
 import { SAMPLE_BOOK, sampleDocAI, sampleFor } from "./sample";
+import { FORMAT_RULES } from "./rich";
 import { ASSET_CLASSES, DOC_TYPES, METRICS, type AssetClass, type Citation, type Doc, type DocAI, type DocType, type Fund, type RunKind, type RunResult } from "./types";
 
 export const NO_KEY = "AI is off: add your ANTHROPIC_API_KEY (see README) and restart Allocra.";
@@ -69,7 +70,9 @@ Rules:
 - Severity: red = material concern or breach of something the manager stated; amber = worth a closer look, unclear or deteriorating; green = confirmed strength or in line.
 - If something an investment committee would expect is missing, list it in "missing". Do not guess.
 - Never recommend investing or not investing. The committee decides; you inform.
-- Write plainly and specifically: use numbers, names and dates from the documents. No filler.`;
+- Write plainly and specifically: use numbers, names and dates from the documents. No filler.
+
+${FORMAT_RULES}`;
 
 const MEMO_TASK = `Write a draft investment committee memo for this fund.
 - summary: the executive summary, 3-5 sentences.
@@ -193,7 +196,7 @@ export async function runAnalysis(kind: RunKind, fund: Fund, docs: Doc[], newest
   return { result: verifyCitations(data, usedDocs), model, ...usage, doc_names: usedDocs.map((d) => d.name) };
 }
 
-export async function callJSON<T>(model: string, system: string, content: Anthropic.TextBlockParam[], schema: object, max_tokens: number) {
+export async function callJSON<T>(model: string, system: string, content: (Anthropic.TextBlockParam | Anthropic.ImageBlockParam)[], schema: object, max_tokens: number) {
   const client = new Anthropic();
   const stream = client.messages.stream({
     model, max_tokens, system,
@@ -346,4 +349,29 @@ function fileByRules(name: string, pages: string[], funds: Fund[]): Filing {
   const doc_type: DocType = /ddq|questionnaire/.test(t) ? "DDQ" : /capital call|distribution notice|notice/.test(t) ? "Capital call / distribution notice" : /capital account|statement/.test(t) ? "Capital account statement" : /letter|quarter|\bq[1-4]\b|report/.test(t) ? "Quarterly letter" : /ppm|lpa|agreement|memorandum/.test(t) ? "PPM / LPA" : /deck|presentation/.test(t) ? "Pitch deck" : "Other";
   if (best && score >= 1) return { manager: best.manager || "", fund_name: best.name, fund_id: best.id, doc_type, as_of: "", asset_class: best.asset_class };
   return { manager: "Unsorted", fund_name: name.replace(/\.[a-z]+$/i, ""), fund_id: null, doc_type, as_of: "", asset_class: null };
+}
+
+/* ------------------------------ scanned pages ------------------------------ */
+const OCR_SCHEMA = {
+  type: "object", additionalProperties: false, required: ["pages"],
+  properties: {
+    pages: {
+      type: "array",
+      items: { type: "object", additionalProperties: false, required: ["page", "text"], properties: { page: { type: "integer" }, text: { type: "string" } } },
+    },
+  },
+};
+
+export async function ocrPages(images: { page: number; data: string }[]): Promise<{ page: number; text: string }[]> {
+  if (!HAS_AI_KEY) throw new Error(NO_KEY);
+  const content: (Anthropic.TextBlockParam | Anthropic.ImageBlockParam)[] = [];
+  for (const im of images) {
+    content.push({ type: "text", text: `Page ${im.page}:` });
+    content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: im.data } });
+  }
+  content.push({ type: "text", text: "Transcribe every page above exactly as written, in reading order. Keep numbers, dates and names exact. Write table rows one per line with cells separated by ' | '. Do not summarize, translate or correct anything. If a page is blank or unreadable, return an empty string for it." });
+  const { data } = await callJSON<{ pages: { page: number; text: string }[] }>(OCR_MODEL,
+    "You transcribe scanned financial documents for an investment team. Accuracy matters more than anything: copy the text, never invent it.",
+    content, OCR_SCHEMA, 16000);
+  return (data.pages || []).filter((p) => images.some((im) => im.page === p.page));
 }

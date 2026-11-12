@@ -7,6 +7,7 @@ import PerfChart from "./PerfChart";
 import RunView, { Cites, SEV_LABEL } from "./RunView";
 import SourceDrawer, { type FigureRef } from "./SourceDrawer";
 import { useUploads } from "./Uploads";
+import Rich, { RichLine } from "./Rich";
 
 type Tab = "overview" | "memo" | "performance" | "changes" | "documents";
 const KPI_BASE: MetricName[] = ["net_irr", "tvpi", "dpi", "nav"];
@@ -69,7 +70,7 @@ export default function Workspace({ fund, initialDocs, initialRuns }: { fund: Fu
   const unsummarized = docs.filter((d) => !d.ai).length;
   const KPI: MetricName[] = [...KPI_BASE, perf.latest.called_pct == null && perf.latest.invested_pct != null ? "invested_pct" : "called_pct"];
 
-  const letters = docs.filter((d) => d.doc_type === "Quarterly letter" || d.doc_type === "Capital account statement");
+  const letters = docs.filter((d) => d.doc_type === "Quarterly letter");
   const defaultNewest = (letters[letters.length - 1] || docs[docs.length - 1])?.id || "";
   const [newestId, setNewestId] = useState(defaultNewest);
   useEffect(() => { if (!docs.some((d) => d.id === newestId)) setNewestId(defaultNewest); }, [docs, newestId, defaultNewest]);
@@ -205,11 +206,11 @@ export default function Workspace({ fund, initialDocs, initialRuns }: { fund: Fu
                 <p className="label">Allocra&apos;s read</p>
                 {memo || change ? (
                   <>
-                    <div className="headline" style={{ marginTop: 0 }}>{(change || memo)!.result.headline}</div>
-                    <p style={{ color: "var(--ink2)", margin: "0 0 6px" }}>{(memo || change)!.result.summary}</p>
+                    <div className="headline" style={{ marginTop: 0 }}><RichLine text={(change || memo)!.result.headline} cites={(change || memo)!.result.findings.flatMap((f) => f.citations || [])} open={setSource} /></div>
+                    <div style={{ color: "var(--ink2)", margin: "0 0 6px" }}><Rich text={(memo || change)!.result.summary} cites={(memo || change)!.result.findings.flatMap((f) => f.citations || []).concat((memo || change)!.result.sections.flatMap((x) => x.citations || []))} open={setSource} /></div>
                     <div className="section" style={{ paddingBottom: 0 }}><p className="label" style={{ margin: 0 }}>Needs attention</p></div>
                     {topFindings.length ? topFindings.map((f, i) => (
-                      <div key={i} className="finding"><span className={`sev ${f.severity}`}>{SEV_LABEL[f.severity]}</span><div><b>{f.topic}.</b> {f.finding}<Cites cs={f.citations} open={setSource} /></div></div>
+                      <div key={i} className="finding"><span className={`sev ${f.severity}`}>{SEV_LABEL[f.severity]}</span><div><b>{f.topic}.</b> <RichLine text={f.finding} cites={f.citations || []} open={setSource} /><Cites cs={f.citations} open={setSource} /></div></div>
                     )) : <p className="muted small">Nothing flagged.</p>}
                   </>
                 ) : <Spinner text="Working…" />}
@@ -224,7 +225,7 @@ export default function Workspace({ fund, initialDocs, initialRuns }: { fund: Fu
                   {[...docs].reverse().slice(0, 3).map((d) => (
                     <div key={d.id} className="doc" style={{ padding: "10px 0" }}>
                       <div className="doc-name small">{short(d.name)} <span className="tag" style={{ marginLeft: 6 }}>{d.doc_type}</span></div>
-                      <p className="doc-sum small" style={{ marginTop: 4 }}>{d.ai?.summary || <span className="muted">Not summarized yet.</span>}</p>
+                      <div className="doc-sum small" style={{ marginTop: 4 }}>{d.ai?.summary ? <RichLine text={d.ai.summary} cites={[...d.ai.key_points.flatMap((k) => k.citations), ...d.ai.metrics.map((m) => m.citation)]} open={setSource} /> : <span className="muted">Not summarized yet.</span>}</div>
                     </div>
                   ))}
                 </div>
@@ -350,9 +351,9 @@ export default function Workspace({ fund, initialDocs, initialRuns }: { fund: Fu
                 {summarizing.includes(d.id) && <div className="row small muted" style={{ gap: 8, marginTop: 8 }}><span className="spinner" />Summarizing…</div>}
                 {d.ai && (
                   <>
-                    <p className="doc-sum">{d.ai.summary}</p>
+                    <div className="doc-sum"><Rich text={d.ai.summary} cites={[...d.ai.key_points.flatMap((k) => k.citations), ...d.ai.metrics.map((m) => m.citation)]} open={setSource} /></div>
                     {open[d.id] ? (
-                      <ul>{d.ai.key_points.map((k, i) => <li key={i}>{k.point}<Cites cs={k.citations} open={setSource} /></li>)}</ul>
+                      <ul>{d.ai.key_points.map((k, i) => <li key={i}><RichLine text={k.point} cites={[...k.citations, ...d.ai!.metrics.map((m) => m.citation)]} open={setSource} /><Cites cs={k.citations} open={setSource} /></li>)}</ul>
                     ) : null}
                     <button className="link-btn" style={{ marginTop: 6 }} onClick={() => setOpen((o) => ({ ...o, [d.id]: !o[d.id] }))}>
                       {open[d.id] ? "Hide key points" : `Key points (${d.ai.key_points.length})${d.ai.metrics.length ? ` · ${d.ai.metrics.length} figure${d.ai.metrics.length === 1 ? "" : "s"}` : ""}`}

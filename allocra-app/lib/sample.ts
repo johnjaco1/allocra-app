@@ -89,21 +89,21 @@ export const SAMPLE_MEMO: RunResult = {
 
 export const SAMPLE_CHANGES: RunResult = {
   fund: "Halden Ridge Credit Fund III",
-  headline: "Q3: a co-PM stepped back, non-sponsored lending is at 31% against a 15% limit, and two loans went on non-accrual.",
+  headline: "Q3: a co-PM stepped back, non-sponsored lending is at [[bad|31%]] against a 15% limit, and two loans went on non-accrual.",
   summary: "Q3 brought a team change, rising credit stress and drift from stated limits. Deployment grew from 64% to 79% invested and from 38 to 47 borrowers.",
   sections: [],
   findings: [
-    { severity: "red", topic: "Team", finding: "Marcus Ortiz moved to a senior advisory role on September 1; in Q2 both co-PMs led all decisions. The investment committee drops to three members.",
+    { severity: "red", topic: "Team", finding: "**Marcus Ortiz moved to a senior advisory role** on September 1; in Q2 both co-PMs led all decisions. The investment committee drops to three members.",
       citations: [{ doc: Q3, page: 3, quote: "Marcus Ortiz has transitioned to a senior advisory role effective September 1." }, { doc: Q2, page: 3, quote: "Co-portfolio managers Elena Brandt and Marcus Ortiz continue to lead all investment decisions." }] },
-    { severity: "red", topic: "Strategy drift", finding: "Non-sponsored loans rose from 18% to 31%. The DDQ limit is 15%.",
+    { severity: "red", topic: "Strategy drift", finding: "Non-sponsored loans rose from 18% to [[bad|31%]], more than **double the 15% limit** in the DDQ.",
       citations: [{ doc: Q3, page: 2, quote: "non-sponsored loans represent 31%" }, { doc: Q2, page: 2, quote: "non-sponsored loans represent 18%" }, { doc: DDQ, page: 2, quote: "Non-sponsored loans are expected to represent no more than 15% of commitments." }] },
-    { severity: "amber", topic: "Credit", finding: "Two loans went on non-accrual (3.4% of NAV), up from none in Q2. Net IRR fell from 12.0% to 11.2%.",
+    { severity: "amber", topic: "Credit", finding: "Two loans went on non-accrual ([[bad|3.4%]] of NAV), up from none in Q2. Net IRR fell from 12.0% to [[bad|11.2%]].",
       citations: [{ doc: Q3, page: 2, quote: "Two loans were placed on non-accrual during the quarter, totaling 3.4% of NAV." }, { doc: Q3, page: 1, quote: "Net IRR since inception is 11.2%" }, { doc: Q2, page: 1, quote: "Net IRR since inception is 12.0%." }] },
     { severity: "amber", topic: "Concentration", finding: "The largest borrower grew from 3.9% to 5.6% of commitments, above the 5% limit.",
       citations: [{ doc: Q3, page: 2, quote: "The largest single borrower represents 5.6% of commitments." }, { doc: Q2, page: 2, quote: "The largest single borrower represents 3.9% of commitments." }] },
     { severity: "amber", topic: "Risk", finding: "Weighted average loan-to-value rose from 41% to 46%.",
       citations: [{ doc: Q3, page: 1, quote: "The portfolio's weighted average loan-to-value is 46%." }, { doc: Q2, page: 1, quote: "The portfolio's weighted average loan-to-value is 41%." }] },
-    { severity: "green", topic: "Terms", finding: "No change to fees, the preferred return or key-person provisions. Fund leverage is 0.8x, within the 1.0x limit.",
+    { severity: "green", topic: "Terms", finding: "No change to fees, the preferred return or key-person provisions. Fund leverage is [[good|0.8x]], within the 1.0x limit.",
       citations: [{ doc: Q3, page: 4, quote: "There are no changes to fees, the preferred return or key-person provisions." }, { doc: Q3, page: 4, quote: "Fund-level leverage was 0.8x at quarter end." }] },
   ],
   questions: [
@@ -286,7 +286,7 @@ const H2: SampleFund = {
     sections: [],
     findings: [
       { severity: "amber", topic: "Fund term", finding: "The GP will ask the Advisory Committee for a one-year extension to December 2028. Q2 made no mention of an extension.", citations: [c(F2Q3, 3, "The General Partner intends to request a one-year extension of the Fund term to December 2028")] },
-      { severity: "green", topic: "Distributions", finding: "Distributions rose from $41 million to $70 million, and DPI went from 0.62x to 0.71x.", citations: [c(F2Q3, 2, "distributed $70 million to limited partners"), c(F2Q2, 2, "distributed $41 million to limited partners")] },
+      { severity: "green", topic: "Distributions", finding: "Distributions rose from $41 million to [[good|$70 million]], and DPI went from 0.62x to [[good|0.71x]].", citations: [c(F2Q3, 2, "distributed $70 million to limited partners"), c(F2Q2, 2, "distributed $41 million to limited partners")] },
       { severity: "green", topic: "Performance", finding: "Net IRR edged up from 11.4% to 11.6% and TVPI from 1.21x to 1.24x.", citations: [c(F2Q3, 1, "Net IRR since inception is 11.6%."), c(F2Q2, 1, "Net IRR since inception is 11.4%.")] },
       { severity: "green", topic: "Credit", finding: "Still no loans on non-accrual.", citations: [c(F2Q3, 2, "There are no loans on non-accrual.")] },
     ],
@@ -387,11 +387,11 @@ const N4: SampleFund = {
   },
   changes: {
     fund: "Northfold Growth Partners IV",
-    headline: "Q3: net IRR jumped from 18.3% to 24.9% on an insider-led Lumora markup, Lumora is now 27% of NAV, and the CFO left.",
+    headline: "Q3: net IRR jumped from 18.3% to 24.9% on an **insider-led Lumora markup**, Lumora is now [[bad|27%]] of NAV, and the CFO left.",
     summary: "The headline gains are concentrated in one company and priced by an existing investor. That happened in the same quarter the CFO who oversaw valuation left.",
     sections: [],
     findings: [
-      { severity: "red", topic: "Valuation", finding: "Lumora marked up 2.1x on a round led by an existing investor; IRR rose from 18.3% to 24.9% and TVPI from 1.19x to 1.38x.", citations: [c(NQ3, 2, "we increased its valuation by 2.1x"), c(NQ3, 1, "Net IRR is 24.9%."), c(NQ2, 1, "Net IRR is 18.3%.")] },
+      { severity: "red", topic: "Valuation", finding: "Lumora marked up **2.1x on a round led by an existing investor**; IRR rose from 18.3% to 24.9% and TVPI from 1.19x to 1.38x.", citations: [c(NQ3, 2, "we increased its valuation by 2.1x"), c(NQ3, 1, "Net IRR is 24.9%."), c(NQ2, 1, "Net IRR is 18.3%.")] },
       { severity: "red", topic: "Team", finding: "CFO Grace Lin left in August; in Q2 she oversaw fund accounting and valuation.", citations: [c(NQ3, 3, "Grace Lin, chief financial officer, left the firm in August."), c(NQ2, 3, "Chief financial officer Grace Lin oversees fund accounting and valuation.")] },
       { severity: "amber", topic: "Concentration", finding: "Lumora grew from 16% to 27% of NAV.", citations: [c(NQ3, 2, "Lumora now represents 27% of NAV."), c(NQ2, 2, "Our largest holding, Lumora, represents 16% of NAV.")] },
       { severity: "amber", topic: "Growth", finding: "Portfolio revenue growth slowed from 31% to 24%.", citations: [c(NQ3, 2, "Revenue across the portfolio grew 24% year over year."), c(NQ2, 2, "Revenue across the portfolio grew 31% year over year.")] },

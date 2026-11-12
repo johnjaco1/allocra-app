@@ -56,7 +56,7 @@ export function buildIntelligence(funds: FundSummary[], docs: Record<string, Doc
       const a = nav[i - 1], b = nav[i], d = dist.find((x) => x.as_of === b.as_of);
       const chg = (b.value + (d?.value || 0)) / a.value - 1;
       if (i === nav.length - 1 && chg < -0.1) alerts.push({ ...base, severity: "high", basis: "figure", title: `NAV down ${pct(-chg)}`,
-        detail: `NAV went from ${money(a.value)} (${qLabel(a.as_of)}) to ${money(b.value)} (${qLabel(b.as_of)})${d ? `, after adding back ${money(d.value)} of distributions` : ""}. Review valuations and underlying company performance.`,
+        detail: `NAV went from ${money(a.value)} (${qLabel(a.as_of)}) to [[bad|${money(b.value)}]] (${qLabel(b.as_of)})${d ? `, after adding back ${money(d.value)} of distributions` : ""}. Review valuations and underlying company performance.`,
         citations: [b.citation, a.citation, ...(d ? [d.citation] : [])] });
     }
     // 2. Net IRR falling half a point or more
@@ -64,14 +64,14 @@ export function buildIntelligence(funds: FundSummary[], docs: Record<string, Doc
     if (irr.length > 1) {
       const a = irr[irr.length - 2], b = irr[irr.length - 1];
       if (b.value - a.value <= -0.5) alerts.push({ ...base, severity: b.value - a.value <= -2 ? "high" : "medium", basis: "figure", title: `Net IRR fell ${(a.value - b.value).toFixed(1)} pts`,
-        detail: `Net IRR went from ${a.value.toFixed(1)}% in ${qLabel(a.as_of)} to ${b.value.toFixed(1)}% in ${qLabel(b.as_of)}.`, citations: [b.citation, a.citation] });
+        detail: `Net IRR went from ${a.value.toFixed(1)}% in ${qLabel(a.as_of)} to [[bad|${b.value.toFixed(1)}%]] in ${qLabel(b.as_of)}.`, citations: [b.citation, a.citation] });
     }
     // 3. Distributions stalled: DPI unchanged for two straight periods once a fund is 3+ years old
     const dpi = series(all, "dpi");
     if (dpi.length > 1 && f.vintage && today.getFullYear() - f.vintage >= 3) {
       const a = dpi[dpi.length - 2], b = dpi[dpi.length - 1];
       if (Math.abs(b.value - a.value) < 0.005) alerts.push({ ...base, severity: "medium", basis: "figure", title: "Distributions stalled",
-        detail: `DPI was ${b.value.toFixed(2)}x in both ${qLabel(a.as_of)} and ${qLabel(b.as_of)}, ${today.getFullYear() - f.vintage} years after the ${f.vintage} vintage.`, citations: [b.citation, a.citation] });
+        detail: `DPI was **${b.value.toFixed(2)}x** in both ${qLabel(a.as_of)} and ${qLabel(b.as_of)}, ${today.getFullYear() - f.vintage} years after the ${f.vintage} vintage.`, citations: [b.citation, a.citation] });
     }
     // 4. Figures that conflict: two documents state different values for the same figure and period
     const seen = new Map<string, Metric>();

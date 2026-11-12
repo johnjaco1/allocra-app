@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -121,26 +122,41 @@ function demoStore(): Store {
 /* ------------------------------------------------------------------ */
 /* Production store: Supabase with row-level security.                 */
 /* ------------------------------------------------------------------ */
-async function ensureOrg(userId: string, email: string): Promise<{ orgId: string; orgName: string; role: "owner" | "member" }> {
+type OrgInfo = { orgId: string; orgName: string; role: "owner" | "member" };
+
+async function findMembership(userId: string): Promise<OrgInfo | null> {
+  const { data: m } = await adminClient().from("members").select("org_id, role, orgs(name)").eq("user_id", userId).maybeSingle();
+  if (!m) return null;
+  return { orgId: m.org_id, role: m.role === "owner" ? "owner" : "member", orgName: (m as unknown as { orgs: { name: string } | null }).orgs?.name || "My firm" };
+}
+
+// Finds the user's firm, or creates one on their first visit. Safe if two requests arrive at once:
+// the database allows one membership per user, so the loser of the race cleans up and uses the winner's firm.
+async function ensureOrg(userId: string, email: string): Promise<OrgInfo> {
+  const existing = await findMembership(userId);
+  if (existing) return existing;
   const admin = adminClient();
-  const { data: m } = await admin.from("members").select("org_id, role, orgs(name)").eq("user_id", userId).maybeSingle();
-  if (m) return { orgId: m.org_id, role: m.role === "owner" ? "owner" : "member", orgName: (m as unknown as { orgs: { name: string } | null }).orgs?.name || "My firm" };
   const e = email.toLowerCase();
   const { data: inv } = await admin.from("invites").select("org_id").eq("email", e).limit(1).maybeSingle();
   let orgId = inv?.org_id as string | undefined;
-  let role = "member";
-  if (orgId) {
-    await admin.from("invites").delete().eq("org_id", orgId).eq("email", e);
-  } else {
+  let created = false;
+  if (!orgId) {
     const domain = e.split("@")[1] || "";
     const { data: org, error } = await admin.from("orgs").insert({ name: domain ? domain.split(".")[0] : "My firm" }).select("id").single();
     if (error) throw error;
-    orgId = org.id; role = "owner";
+    orgId = org.id; created = true;
   }
+  const role = created ? "owner" : "member";
   const { error: me } = await admin.from("members").insert({ org_id: orgId, user_id: userId, email: e, role });
-  if (me) throw me;
-  const { data: o } = await admin.from("orgs").select("name").eq("id", orgId).single();
-  return { orgId: orgId!, orgName: o?.name || "My firm", role: role === "owner" ? "owner" : "member" };
+  if (me) {
+    const winner = await findMembership(userId);
+    if (created) await admin.from("orgs").delete().eq("id", orgId!); // remove the duplicate we just made
+    if (winner) return winner;
+    throw me;
+  }
+  if (inv) await admin.from("invites").delete().eq("org_id", orgId!).eq("email", e);
+  const { data: o } = await admin.from("orgs").select("name").eq("id", orgId!).single();
+  return { orgId: orgId!, orgName: o?.name || "My firm", role };
 }
 
 async function supabaseStore(): Promise<Store | null> {
@@ -201,6 +217,5 @@ async function supabaseStore(): Promise<Store | null> {
   };
 }
 
-export async function getStore(): Promise<Store | null> {
-  return DEMO_MODE ? demoStore() : supabaseStore();
-}
+// One store per request, so the sidebar and the page share the same lookup.
+export const getStore = cache(async (): Promise<Store | null> => (DEMO_MODE ? demoStore() : supabaseStore()));

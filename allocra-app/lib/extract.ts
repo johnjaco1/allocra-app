@@ -17,11 +17,33 @@ function chunk(text: string): string[] {
   return out;
 }
 
-async function readPdf(file: File): Promise<string[]> {
+const MIN_TEXT = 40;     // a page with less text than this is treated as scanned
+const OCR_BATCH = 6;     // page images per request (keeps each request well under hosting limits)
+const MAX_SCANNED = 400; // safety cap per document
+
+type Progress = (msg: string) => void;
+
+// Renders one page to a JPEG (as base64) so Claude can read it. The image is used once and never stored.
+async function pageImage(page: { getViewport: (o: { scale: number }) => { width: number; height: number }; render: (o: object) => { promise: Promise<void> } }) {
+  const base = page.getViewport({ scale: 1 });
+  const scale = Math.min(2, 1400 / base.width);
+  const vp = page.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.floor(vp.width); canvas.height = Math.floor(vp.height);
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  const url = canvas.toDataURL("image/jpeg", 0.72);
+  canvas.width = canvas.height = 0;
+  return url.slice(url.indexOf(",") + 1);
+}
+
+async function readPdf(file: File, progress?: Progress): Promise<string[]> {
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
   const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
   const pages: string[] = [];
+  const scanned: number[] = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const tc = await page.getTextContent();
@@ -30,7 +52,26 @@ async function readPdf(file: File): Promise<string[]> {
       if (typeof it.str !== "string") continue;
       s += it.str + (it.hasEOL ? "\n" : it.str.endsWith(" ") ? "" : " ");
     }
-    pages.push(s.replace(/[ \t]+/g, " ").replace(/ ?\n ?/g, "\n").trim());
+    const text = s.replace(/[ \t]+/g, " ").replace(/ ?\n ?/g, "\n").trim();
+    pages.push(text);
+    if (text.replace(/\s/g, "").length < MIN_TEXT) scanned.push(i);
+    if (i % 25 === 0) progress?.(`Reading page ${i} of ${pdf.numPages}`);
+  }
+  if (!scanned.length) return pages;
+  if (scanned.length > MAX_SCANNED) throw new Error(`${file.name} has ${scanned.length} scanned pages. Split it into files of ${MAX_SCANNED} pages or fewer.`);
+
+  // Scanned pages: send page images to Claude in small batches and keep only the text it returns.
+  let done = 0;
+  for (let b = 0; b < scanned.length; b += OCR_BATCH) {
+    const nums = scanned.slice(b, b + OCR_BATCH);
+    progress?.(`Reading scanned pages ${done + 1}–${done + nums.length} of ${scanned.length}`);
+    const images: { page: number; data: string }[] = [];
+    for (const n of nums) images.push({ page: n, data: await pageImage(await pdf.getPage(n) as never) });
+    const r = await fetch("/api/ocr", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: file.name, images }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || "Couldn't read the scanned pages.");
+    for (const p of j.pages as { page: number; text: string }[]) if (nums.includes(p.page)) pages[p.page - 1] = p.text.trim();
+    done += nums.length;
   }
   return pages;
 }
@@ -70,11 +111,11 @@ async function readXlsx(file: File): Promise<string[]> {
   return pages;
 }
 
-export async function extractPages(file: File): Promise<string[]> {
+export async function extractPages(file: File, progress?: Progress): Promise<string[]> {
   const n = file.name.toLowerCase();
   if (n.endsWith(".xlsx")) return readXlsx(file);
   if (n.endsWith(".csv")) { const t = await file.text(); const out: string[] = []; for (let i = 0; i < t.length; i += SECTION) out.push(t.slice(i, i + SECTION)); return out; }
-  if (n.endsWith(".pdf")) return readPdf(file);
+  if (n.endsWith(".pdf")) return readPdf(file, progress);
   if (n.endsWith(".docx")) return readDocx(file);
   if (n.endsWith(".txt") || n.endsWith(".md")) return chunk(await file.text());
   throw new Error(`${file.name}: use PDF, Word, Excel, CSV or TXT.`);

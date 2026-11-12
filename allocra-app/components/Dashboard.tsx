@@ -5,6 +5,7 @@ import { fmtDate, fmtMetric, fmtPeriod, short } from "@/lib/client";
 import type { Intelligence } from "@/lib/alerts";
 import type { Citation } from "@/lib/types";
 import SourceDrawer from "./SourceDrawer";
+import { RichLine } from "./Rich";
 
 const $ = (v: number) => fmtMetric("nav", v);
 
@@ -39,7 +40,7 @@ export default function Dashboard({ intel, docIndex }: { intel: Intelligence; do
             <span className={"sev " + (a.severity === "high" ? "red" : "amber")}>{a.severity === "high" ? "High" : "Medium"}</span>
             <div style={{ minWidth: 0 }}>
               <div><Link href={`/funds/${a.fund_id}`} className="fn" style={{ color: "var(--ink)" }}>{a.fund}</Link><span className="muted">: </span><b>{a.title}</b></div>
-              <div className="small" style={{ color: "var(--ink2)", marginTop: 2 }}>{a.detail}</div>
+              <div className="small" style={{ color: "var(--ink2)", marginTop: 2 }}><RichLine text={a.detail} cites={a.citations} open={(c) => setSource({ ...c, fund_id: a.fund_id })} /></div>
               <div className="cites">
                 <span className={"basis " + a.basis}>{a.basis === "figure" ? "From reported figures" : "AI interpretation"}</span>
                 {a.citations.map((c, j) => (

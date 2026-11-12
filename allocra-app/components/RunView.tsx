@@ -1,6 +1,8 @@
 "use client";
 import { fmtDate, short } from "@/lib/client";
 import type { Citation, Run } from "@/lib/types";
+import { plain } from "@/lib/rich";
+import Rich, { RichLine } from "./Rich";
 
 export const SEV_LABEL = { red: "Red flag", amber: "Look closer", green: "In line" } as const;
 
@@ -21,10 +23,10 @@ function copyText(fundName: string, r: Run) {
   const x = r.result;
   const cites = (cs: Citation[]) => (cs.length ? ` [${cs.map((c) => `${short(c.doc)} p.${c.page}`).join("; ")}]` : "");
   const t = [
-    `${fundName}: ${r.kind === "memo" ? "IC Memo" : "What Changed"} (${fmtDate(r.created_at)})`, "", x.headline, "", x.summary, "",
-    ...x.sections.flatMap((s) => [s.heading.toUpperCase(), s.body + cites(s.citations), ""]),
+    `${fundName}: ${r.kind === "memo" ? "IC Memo" : "What Changed"} (${fmtDate(r.created_at)})`, "", plain(x.headline), "", plain(x.summary), "",
+    ...x.sections.flatMap((s) => [s.heading.toUpperCase(), plain(s.body) + cites(s.citations), ""]),
     r.kind === "memo" ? "KEY FINDINGS" : "CHANGES",
-    ...x.findings.map((f) => `- [${SEV_LABEL[f.severity]}] ${f.topic}: ${f.finding}${cites(f.citations)}`), "",
+    ...x.findings.map((f) => `- [${SEV_LABEL[f.severity]}] ${f.topic}: ${plain(f.finding)}${cites(f.citations)}`), "",
     "QUESTIONS", ...x.questions.map((q, i) => `${i + 1}. ${q}`),
     ...(x.missing.length ? ["", "NOT COVERED IN THE DOCUMENTS", ...x.missing.map((m) => `- ${m}`)] : []),
   ].join("\n");
@@ -33,12 +35,13 @@ function copyText(fundName: string, r: Run) {
 
 export default function RunView({ run, fundName, open, onDelete }: { run: Run; fundName: string; open: (c: Citation) => void; onDelete: () => void }) {
   const r = run.result;
+  const all = [...r.sections.flatMap((s) => s.citations || []), ...r.findings.flatMap((f) => f.citations || [])];
   return (
     <article>
       <div className="between">
         <div className="result-head" style={{ flex: 1, minWidth: 260 }}>
           <div className="kind">{run.kind === "memo" ? "Investment committee memo" : "What changed"}</div>
-          <div className="headline">{r.headline}</div>
+          <div className="headline"><RichLine text={r.headline} cites={all} open={open} /></div>
         </div>
         <div className="row no-print" style={{ gap: 6 }}>
           <a className="btn ghost sm" href={`/api/runs/${run.id}/docx`}>Word</a>
@@ -46,13 +49,13 @@ export default function RunView({ run, fundName, open, onDelete }: { run: Run; f
           <button className="btn ghost sm" onClick={() => copyText(fundName, run)}>Copy</button>
         </div>
       </div>
-      <p style={{ color: "var(--ink2)", margin: "12px 0 6px" }}>{r.summary}</p>
+      <div style={{ color: "var(--ink2)", margin: "12px 0 6px" }}><Rich text={r.summary} cites={all} open={open} /></div>
       <div className="tiny muted" style={{ marginBottom: 8 }}>Sources: {run.doc_names.map(short).join(" · ")} · {fmtDate(run.created_at)}</div>
 
       {r.sections.map((s) => (
         <div key={s.heading} className="section">
           <h3>{s.heading}</h3>
-          <p>{s.body}</p>
+          <Rich text={s.body} cites={s.citations || []} open={open} className="sec-body" />
           <Cites cs={s.citations} open={open} />
         </div>
       ))}
@@ -61,7 +64,7 @@ export default function RunView({ run, fundName, open, onDelete }: { run: Run; f
       {r.findings.map((f, i) => (
         <div key={i} className="finding">
           <span className={`sev ${f.severity}`}>{SEV_LABEL[f.severity] || f.severity}</span>
-          <div><b>{f.topic}.</b> {f.finding}<Cites cs={f.citations} open={open} /></div>
+          <div><b>{f.topic}.</b> <RichLine text={f.finding} cites={f.citations || []} open={open} /><Cites cs={f.citations} open={open} /></div>
         </div>
       ))}
 

@@ -2,6 +2,7 @@ import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import { callJSON, NO_KEY, render, verifyCitations } from "./ai";
 import { CHAT_MODEL, HAS_AI_KEY } from "./env";
+import { FORMAT_RULES } from "./rich";
 import type { Store } from "./store";
 import { METRIC_LABEL, type Citation, type Doc, type MetricName, type Run } from "./types";
 
@@ -36,7 +37,10 @@ Rules:
 - Use ONLY the material provided below. If it doesn't contain the answer, say so plainly and say what document would answer it.
 - Back factual claims with refs (fund, exact document name, page, short exact quote). Prefer citing documents over citing Allocra's own analyses.
 - Be direct: lead with the answer, then the supporting detail. Compare across funds or firms when asked.
-- Never recommend investing or not investing.`;
+- Every figure in your answer must appear, written the same way, in the quote of one of your refs, so the user can click it to see the source.
+- Never recommend investing or not investing.
+
+${FORMAT_RULES}`;
 
 const metricLine = (latest: Partial<Record<MetricName, number>>) =>
   (Object.entries(latest) as [MetricName, number][]).map(([k, v]) => `${METRIC_LABEL[k]} ${v}`).join(", ");

@@ -1,6 +1,7 @@
 import "server-only";
 import { AlignmentType, BorderStyle, Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import type { Citation, Run } from "./types";
+import { plain } from "./rich";
 
 const SEV: Record<string, { label: string; color: string }> = {
   red: { label: "RED FLAG", color: "B42318" },
@@ -18,16 +19,16 @@ export async function runToDocx(run: Run, fundName: string): Promise<Buffer> {
   const title = run.kind === "memo" ? "Investment Committee Memo" : "What Changed";
   const date = new Date(run.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   const kids: Paragraph[] = [
-    new Paragraph({ children: [new TextRun({ text: "ALLOCRA", bold: true, size: 18, color: "1F4FD1" })] }),
+    new Paragraph({ children: [new TextRun({ text: "ALLOCRA", bold: true, size: 18, color: "1F5C7A" })] }),
     new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun({ text: `${fundName}: ${title}` })] }),
     new Paragraph({ children: [new TextRun({ text: `${date} · Sources: ${run.doc_names.join(", ")}`, size: 18, color: "667085" })] }),
-    new Paragraph({ spacing: { before: 240 }, border: { left: { style: BorderStyle.SINGLE, size: 18, color: "1F4FD1", space: 8 } },
-      children: [new TextRun({ text: r.headline, bold: true, size: 24 })] }),
-    new Paragraph({ spacing: { before: 120, after: 120 }, children: [new TextRun({ text: r.summary })] }),
+    new Paragraph({ spacing: { before: 240 }, border: { left: { style: BorderStyle.SINGLE, size: 18, color: "1F5C7A", space: 8 } },
+      children: [new TextRun({ text: plain(r.headline), bold: true, size: 24 })] }),
+    new Paragraph({ spacing: { before: 120, after: 120 }, children: [new TextRun({ text: plain(r.summary) })] }),
   ];
   for (const s of r.sections || []) {
     kids.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun(s.heading)] }));
-    kids.push(new Paragraph({ children: [new TextRun(s.body), ...cite(s.citations || [])] }));
+    kids.push(new Paragraph({ children: [new TextRun(plain(s.body)), ...cite(s.citations || [])] }));
   }
   kids.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun(run.kind === "memo" ? "Key findings" : "Changes")] }));
   for (const f of r.findings || []) {
@@ -35,7 +36,7 @@ export async function runToDocx(run: Run, fundName: string): Promise<Buffer> {
     kids.push(new Paragraph({ spacing: { after: 100 }, children: [
       new TextRun({ text: sv.label + "  ", bold: true, color: sv.color, size: 18 }),
       new TextRun({ text: f.topic + ". ", bold: true }),
-      new TextRun(f.finding), ...cite(f.citations || []),
+      new TextRun(plain(f.finding)), ...cite(f.citations || []),
     ] }));
   }
   if (r.questions?.length) {
