@@ -7,14 +7,17 @@ export const GET = handle(async (s) => ({ funds: await s.listFunds() }));
 export const POST = handle(async (s, req) => {
   const body = await req.json().catch(() => ({}));
   if (body.sample) {
-    // Load the fictional sample book (2 firms, 3 funds). Documents come in un-analyzed so the demo shows Allocra working.
+    // Load the fictional sample book (2 firms, 3 funds), already analyzed, so a first-time visitor sees results instantly.
     const existing = await s.listFunds();
     let first = existing.find((f) => f.sample) || null;
     for (const sf of SAMPLE_BOOK) {
       if (existing.some((f) => f.sample && f.name === sf.fund.name)) continue;
       const fund = await s.createFund({ ...sf.fund, sample: true });
       first = first || { ...fund, doc_count: 0, last_run: null, latest: {}, latest_as_of: null, to_review: 0 };
-      for (const d of sf.docs) await s.addDoc(fund.id, { name: d.name, doc_type: d.doc_type, pages: d.pages, as_of: d.as_of });
+      for (const d of sf.docs) await s.addDoc(fund.id, { name: d.name, doc_type: d.doc_type, pages: d.pages, as_of: d.as_of, ai: d.ai });
+      const names = sf.docs.map((d) => d.name);
+      if (sf.memo) await s.addRun({ fund_id: fund.id, kind: "memo", result: sf.memo, doc_names: names, model: "sample", input_tokens: null, output_tokens: null });
+      if (sf.changes) await s.addRun({ fund_id: fund.id, kind: "changes", result: sf.changes, doc_names: names, model: "sample", input_tokens: null, output_tokens: null });
     }
     await s.log("fund.create", "Sample funds");
     return { fund: first };
